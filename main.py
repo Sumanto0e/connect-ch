@@ -1,73 +1,100 @@
-from pyrogram import Client, filters, idle
+from pyrogram import Client, Filters
 import os
 import time
 import datetime
-import asyncio
 
-# Set timezone (tidak terlalu ngaruh kalau pakai fix yang ini)
+# ⏱️ Sinkronisasi waktu
 os.environ["TZ"] = "UTC"
 time.tzset()
 print(f"🕒 Timezone diset ke UTC: {datetime.datetime.utcnow()}")
 
-# Env config
+# 🔐 Konfigurasi
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CHANNEL_ID = os.environ.get("CHANNEL_ID")
+CHANNEL_ID = os.environ.get("CHANNEL_ID")  # -100... atau @username
 
-# FIX: Gunakan name=None untuk mode bot_token
 app = Client(
-    name=None,
+    session_name="mybot",
     api_id=API_ID,
     api_hash=API_HASH,
-    bot_token=BOT_TOKEN,
-    workdir="."
+    bot_token=BOT_TOKEN
 )
 
-@app.on_message(filters.private)
-async def reply_and_forward(client, message):
+# 📥 Pesan pribadi → balas dan forward
+@app.on_message(Filters.private)
+def reply_and_forward(client, message):
     print(f"📥 Dari {message.from_user.first_name} ({message.from_user.id}): {message.text}")
+
     try:
-        await message.reply("Halo dari bot Pyrogram!")
-        await client.send_message(CHANNEL_ID, f"📢 Dari {message.from_user.first_name}: {message.text}")
-        print("✅ Balas & kirim ke channel sukses.")
+        message.reply("Halo dari Pyrogram 1.4.6!")
+        print("✅ Balas ke user.")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Gagal balas: {e}")
 
-@app.on_message(filters.command("start"))
-async def started(client, message):
-    await message.reply("Bot aktif!")
-
-@app.on_message(filters.command("ping"))
-async def ping(client, message):
-    await message.reply("PONG!")
-
-@app.on_message(filters.command("test"))
-async def test_channel(client, message):
     try:
-        await client.send_message(CHANNEL_ID, "🔁 Tes kirim ke channel.")
-        await message.reply("✅ Berhasil kirim.")
+        client.send_message(CHANNEL_ID, f"📢 Dari {message.from_user.first_name}: {message.text}")
+        print(f"✅ Kirim ke channel: {CHANNEL_ID}")
     except Exception as e:
-        await message.reply(f"❌ Error: {e}")
+        print(f"❌ Gagal kirim channel: {e}")
 
-@app.on_message(filters.command("info"))
-async def get_channel_info(client, message):
+# 🚀 /start
+@app.on_message(Filters.command("start"))
+def start(client, message):
+    message.reply("Bot aktif (v1.4.6)")
+    print("🚀 Menerima /start")
+
+# 🧪 /test
+@app.on_message(Filters.command("test"))
+def test(client, message):
     try:
-        chat = await client.get_chat(CHANNEL_ID)
-        member = await client.get_chat_member(CHANNEL_ID, "me")
-        await message.reply(
-            f"📡 Channel: {chat.title}\nID: <code>{chat.id}</code>\nStatus bot: <b>{member.status}</b>"
+        client.send_message(CHANNEL_ID, "🔁 Tes kirim dari /test.")
+        message.reply("✅ Test berhasil.")
+    except Exception as e:
+        print(f"❌ Gagal test: {e}")
+        message.reply(f"❌ Error: {e}")
+
+# 📡 /info
+@app.on_message(Filters.command("info"))
+def info(client, message):
+    try:
+        chat = client.get_chat(CHANNEL_ID)
+        member = client.get_chat_member(CHANNEL_ID, "me")
+        status = member.status if member else "Tidak ditemukan"
+        message.reply(
+            f"📡 Channel: {chat.title}\n"
+            f"ID: <code>{chat.id}</code>\n"
+            f"Status bot: {status}"
         )
     except Exception as e:
-        await message.reply(f"❌ Error ambil info: {e}")
+        print(f"❌ Gagal info: {e}")
+        message.reply(f"❌ Gagal ambil info: {e}")
 
-async def main():
-    print("🚦 Bot mulai...")
-    await app.start()
-    print("✅ Bot online.")
-    await idle()
-    await app.stop()
-    print("🛑 Bot dimatikan.")
+# 🏓 /ping
+@app.on_message(Filters.command("ping"))
+def ping(client, message):
+    message.reply("PONG!")
 
-if __name__ == "__main__":
-    asyncio.run(main())
+# 🔎 /peerid [username atau ID]
+@app.on_message(Filters.command("peerid"))
+def peerid(client, message):
+    try:
+        if len(message.command) < 2:
+            message.reply("⚠️ Contoh: <code>/peerid @namachannel</code>")
+            return
+
+        target = message.command[1]
+        chat = client.get_chat(target)
+        message.reply(
+            f"👁️‍🗨️ Peer ID dari <b>{chat.title or chat.first_name}</b>:\n"
+            f"<code>{chat.id}</code>"
+        )
+        print(f"🔍 Peer ID dari {target}: {chat.id}")
+    except Exception as e:
+        print(f"❌ Gagal ambil peer ID: {e}")
+        message.reply(f"❌ Gagal ambil peer ID: {e}")
+
+# 🚦 Run bot
+print("🚦 Bot sedang start...")
+app.run()
+print("🛑 Bot dimatikan.")
