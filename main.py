@@ -45,4 +45,43 @@ async def started(client, message):
 async def test_channel(client, message):
     print("🧪 Coba kirim ke channel...")
     try:
-        await client.send_message(CH_
+        await client.send_message(CHANNEL_ID, "🔁 Tes kirim channel dari /test.")
+        await message.reply("✅ Kirim ke channel berhasil.")
+    except Exception as e:
+        print(f"❌ Test gagal: {e}")
+        await message.reply(f"❌ Gagal kirim ke channel: {e}")
+
+# 📡 Command /info ambil info + status bot di channel
+@app.on_message(filters.command("info"))
+async def get_channel_info(client, message):
+    try:
+        chat = await client.get_chat(CHANNEL_ID)
+        member = await client.get_chat_member(CHANNEL_ID, "me")
+        status = member.status if member else "Tidak ditemukan"
+        await message.reply(
+            f"📡 Channel: <b>{chat.title}</b>\n"
+            f"ID: <code>{chat.id}</code>\n"
+            f"Status bot di channel: <b>{status}</b>"
+        )
+        print(f"📡 Info channel: {chat.title} ({chat.id}) | Bot status: {status}")
+    except Exception as e:
+        print(f"❌ Gagal ambil info channel: {e}")
+        await message.reply(f"❌ Gagal ambil info: {e}")
+
+# 🏓 Ping command
+@app.on_message(filters.command("ping"))
+async def ping(client, message):
+    await message.reply("PONG!")
+
+# 🚦 Jalankan bot secara manual (tanpa app.run())
+async def main():
+    print("🚦 Bot sedang start...")
+    await app.start()
+    print("✅ Bot sudah online!")
+    await idle()
+    await app.stop()
+    print("🛑 Bot dimatikan.")
+
+# 🔁 Mulai event loop
+if __name__ == "__main__":
+    asyncio.run(main())
