@@ -2,8 +2,8 @@ import os
 import time
 import datetime
 from telethon import TelegramClient, events
-from telethon.tl.functions.channels import GetFullChannel
 from telethon.errors import RPCError
+from telethon.tl.functions.channels import GetFullChannelRequest
 
 # ⏱️ Sinkronisasi waktu
 os.environ["TZ"] = "UTC"
@@ -34,7 +34,7 @@ async def handler(event):
 
     try:
         await client.send_message(CHANNEL_ID, f"📢 Dari {user.first_name}: {msg}")
-        print(f"✅ Berhasil kirim ke channel {CHANNEL_ID}")
+        print(f"✅ Kirim ke channel {CHANNEL_ID}")
     except Exception as e:
         print(f"❌ Gagal kirim ke channel: {e}")
 
@@ -58,7 +58,7 @@ async def test(event):
 @client.on(events.NewMessage(pattern="/info"))
 async def info(event):
     try:
-        full = await client(GetFullChannel(channel=CHANNEL_ID))
+        full = await client(GetFullChannelRequest(channel=CHANNEL_ID))
         channel = full.chats[0]
         await event.reply(
             f"📡 Channel: {channel.title}\n"
