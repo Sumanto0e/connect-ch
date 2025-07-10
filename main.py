@@ -1,12 +1,13 @@
-from pyrogram import Client, filters
+from pyrogram import Client, filters, idle
 import os
 import time
 import datetime
+import asyncio
 
-# ⏱️ Fix timezone agar sinkron dengan server Telegram
+# ⏱️ Sinkronisasi waktu dengan UTC (untuk menghindari error msg_id)
 os.environ["TZ"] = "UTC"
 time.tzset()
-print(f"🕒 Timezone diset ke UTC: {datetime.datetime.now()}")
+print(f"🕒 Timezone diset ke UTC: {datetime.datetime.utcnow()}")
 
 # 🔐 Konfigurasi
 API_ID = int(os.environ.get("API_ID"))
@@ -44,35 +45,4 @@ async def started(client, message):
 async def test_channel(client, message):
     print("🧪 Coba kirim ke channel...")
     try:
-        await client.send_message(CHANNEL_ID, "🔁 Tes kirim channel dari /test.")
-        await message.reply("✅ Kirim ke channel berhasil.")
-    except Exception as e:
-        print(f"❌ Test gagal: {e}")
-        await message.reply(f"❌ Gagal kirim ke channel: {e}")
-
-# 📡 Command /info ambil info + status bot di channel
-@app.on_message(filters.command("info"))
-async def get_channel_info(client, message):
-    try:
-        chat = await client.get_chat(CHANNEL_ID)
-        member = await client.get_chat_member(CHANNEL_ID, "me")
-        status = member.status if member else "Tidak ditemukan"
-        await message.reply(
-            f"📡 Channel: <b>{chat.title}</b>\n"
-            f"ID: <code>{chat.id}</code>\n"
-            f"Status bot di channel: <b>{status}</b>"
-        )
-        print(f"📡 Info channel: {chat.title} ({chat.id}) | Bot status: {status}")
-    except Exception as e:
-        print(f"❌ Gagal ambil info channel: {e}")
-        await message.reply(f"❌ Gagal ambil info: {e}")
-
-# 🏓 Ping command
-@app.on_message(filters.command("ping"))
-async def ping(client, message):
-    await message.reply("PONG!")
-
-# 🚦 Mulai bot
-print("🚦 Bot sedang start...")
-app.run()
-print("🛑 Bot dimatikan.")
+        await client.send_message(CH_
