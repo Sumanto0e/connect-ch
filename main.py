@@ -1,99 +1,93 @@
-from pyrogram import Client, filters
 import os
 import time
 import datetime
+from telethon import TelegramClient, events
+from telethon.tl.functions.channels import GetFullChannel
+from telethon.errors import RPCError
 
-# ⏱️ Sinkronisasi waktu (penting untuk Heroku)
+# ⏱️ Sinkronisasi waktu
 os.environ["TZ"] = "UTC"
 time.tzset()
 print(f"🕒 Timezone diset ke UTC: {datetime.datetime.utcnow()}")
 
-# 🔐 Konfigurasi dari ENV
+# 🔐 Konfigurasi ENV
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CHANNEL_ID = os.environ.get("CHANNEL_ID")
+CHANNEL_ID = os.environ.get("CHANNEL_ID")  # Gunakan -100... atau @username
 
-# 🔧 Inisialisasi Pyrogram Client
-app = Client(
-    "mybot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN
-)
+# 🔧 Inisialisasi Telethon Client sebagai Bot
+client = TelegramClient('mybot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-# 📥 Balas dan forward pesan pribadi
-@app.on_message(filters.private)
-async def reply_and_forward(client, message):
-    print(f"📥 Dari {message.from_user.first_name} ({message.from_user.id}): {message.text}")
+# 📥 Balas & forward pesan pribadi
+@client.on(events.NewMessage(incoming=True, func=lambda e: e.is_private))
+async def handler(event):
+    user = await event.get_sender()
+    msg = event.raw_text
+    print(f"📥 Dari {user.first_name} ({user.id}): {msg}")
 
     try:
-        await message.reply("Halo dari Pyrogram 1.4.6!")
-        print("✅ Balas ke user.")
+        await event.reply("Halo dari Telethon!")
+        print("✅ Berhasil balas.")
     except Exception as e:
         print(f"❌ Gagal balas: {e}")
 
     try:
-        await client.send_message(CHANNEL_ID, f"📢 Dari {message.from_user.first_name}: {message.text}")
-        print(f"✅ Kirim ke channel: {CHANNEL_ID}")
+        await client.send_message(CHANNEL_ID, f"📢 Dari {user.first_name}: {msg}")
+        print(f"✅ Berhasil kirim ke channel {CHANNEL_ID}")
     except Exception as e:
-        print(f"❌ Gagal kirim channel: {e}")
+        print(f"❌ Gagal kirim ke channel: {e}")
 
 # 🚀 /start
-@app.on_message(filters.command("start"))
-async def start(client, message):
-    await message.reply("✅ Bot aktif (v1.4.6)")
+@client.on(events.NewMessage(pattern="/start"))
+async def start(event):
+    await event.reply("✅ Bot aktif (Telethon)")
     print("🚀 /start dijalankan")
 
-# 🧪 /test kirim ke channel
-@app.on_message(filters.command("test"))
-async def test(client, message):
+# 🧪 /test
+@client.on(events.NewMessage(pattern="/test"))
+async def test(event):
     try:
         await client.send_message(CHANNEL_ID, "🔁 Tes dari /test.")
-        await message.reply("✅ Tes berhasil.")
+        await event.reply("✅ Tes berhasil.")
     except Exception as e:
-        print(f"❌ Error kirim /test: {e}")
-        await message.reply(f"❌ Error: {e}")
+        await event.reply(f"❌ Gagal: {e}")
+        print(f"❌ Error /test: {e}")
 
 # 📡 /info
-@app.on_message(filters.command("info"))
-async def info(client, message):
+@client.on(events.NewMessage(pattern="/info"))
+async def info(event):
     try:
-        chat = await client.get_chat(CHANNEL_ID)
-        member = await client.get_chat_member(CHANNEL_ID, "me")
-        status = member.status if member else "Tidak ditemukan"
-        await message.reply(
-            f"📡 Channel: {chat.title}\n"
-            f"ID: <code>{chat.id}</code>\n"
-            f"Status bot: {status}"
+        full = await client(GetFullChannel(channel=CHANNEL_ID))
+        channel = full.chats[0]
+        await event.reply(
+            f"📡 Channel: {channel.title}\n"
+            f"ID: <code>{channel.id}</code>\n"
+            f"Username: @{channel.username or 'tidak ada'}"
         )
     except Exception as e:
-        await message.reply(f"❌ Gagal ambil info: {e}")
+        await event.reply(f"❌ Gagal ambil info: {e}")
         print(f"❌ Gagal info: {e}")
 
 # 🏓 /ping
-@app.on_message(filters.command("ping"))
-async def ping(client, message):
-    await message.reply("🏓 PONG!")
+@client.on(events.NewMessage(pattern="/ping"))
+async def ping(event):
+    await event.reply("🏓 PONG!")
 
-# 🔎 /peerid [username atau ID]
-@app.on_message(filters.command("peerid"))
-async def peerid(client, message):
-    if len(message.command) < 2:
-        await message.reply("⚠️ Contoh: <code>/peerid @namachannel</code>")
-        return
+# 🔎 /peerid @username
+@client.on(events.NewMessage(pattern=r"/peerid (.+)"))
+async def peerid(event):
+    username = event.pattern_match.group(1)
     try:
-        target = message.command[1]
-        chat = await client.get_chat(target)
-        await message.reply(
-            f"👁️‍🗨️ Peer ID dari <b>{chat.title or chat.first_name}</b>:\n<code>{chat.id}</code>"
-        )
-        print(f"🔍 Peer ID dari {target}: {chat.id}")
-    except Exception as e:
-        await message.reply(f"❌ Gagal ambil peer ID: {e}")
+        entity = await client.get_entity(username)
+        title = getattr(entity, 'title', getattr(entity, 'first_name', ''))
+        await event.reply(f"👁️‍🗨️ Peer ID dari <b>{title}</b>:\n<code>{entity.id}</code>")
+        print(f"🔍 Peer ID dari {username}: {entity.id}")
+    except RPCError as e:
+        await event.reply(f"❌ Gagal ambil peer ID: {e}")
         print(f"❌ Error peerid: {e}")
 
-# 🟢 Jalankan bot
-print("🚦 Bot sedang start...")
-app.run()
+# ▶️ Start bot
+print("🚦 Bot sedang start (Telethon)...")
+client.run_until_disconnected()
 print("🛑 Bot dimatikan.")
